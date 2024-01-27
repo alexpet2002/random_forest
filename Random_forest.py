@@ -110,6 +110,7 @@ def create3d_matrix(category, vectorized_text):
     print(array_of_sets)
 
 
+
 if __name__ == '__main__':
     filepath = "C:/Users/alex/Desktop/txt_test"
     data = read_file(filepath)
