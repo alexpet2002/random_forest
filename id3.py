@@ -3,6 +3,8 @@ import numpy as np
 
 # helper functions
 def calculate_entropy(probability_matrix):
+    if probability_matrix == 0:
+        return 0
     entropies = []
     for i in range(len(probability_matrix)):
         probability = probability_matrix[i]
@@ -65,10 +67,10 @@ def split_matrix(node, best_attribute):
 
 
 class Node:
-    ## root node: original table ( which is a random subset of the merged data)
-    ## left node: filtered table for 1 (absence of word)  and negative outcome
+    # root node: original table ( which is a random subset of the merged data)
+    # left node: filtered table for 1 (absence of word)  and negative outcome
     # the table should contain the info for all the other words too
-    ## right node: filtered table for 0...
+    # right node: filtered table for 0...
     # for each node the entropy and information gain should be stored
 
     def __init__(self, entropy=None, inf_gain=None, matrix=None, left_side=None, right_side=None, parent_node=None,
@@ -90,10 +92,26 @@ class Node:
         return all(entry[1] == 'neg' for entry in self.matrix)
 
     def percentage_check(self):
-        pass
+        negative_count = 0
+        positive_count = 0
+        for i in range(len(self.matrix)):
+            if self.matrix[i][1] == "neg":
+                negative_count += 1
+            else:
+                positive_count += 1
 
+        if negative_count == positive_count:
+            return True, "neg"
+
+        max_label = ("neg" if negative_count > positive_count else "pos")
+
+        return negative_count / len(self.matrix) >= 0.95 or positive_count / len(self.matrix) >= 0.95, max_label
+
+    def final_decision(self):
+        if self.is_leaf_node():
+            return self.percentage_check()[1]
     def is_leaf_node(self):
-        return self.is_data_homogeneous() or len(self.matrix) == 1 or self.percentage_check()
+        return self.is_data_homogeneous() or len(self.matrix) == 1 or self.percentage_check()[0]
 
     def print_node(self, indent=""):
         print(indent + "Node:")
@@ -169,9 +187,13 @@ class Tree:
         self.leaf_nodes = []
 
     def construct_tree(self, node):
-        if node.is_data_homogeneous():
+        if node.is_leaf_node():
             self.leaf_nodes.append(node)
+            print("reached leaf node..")
+            print("final decision: ")
+            print(node.final_decision())
             return self.leaf_nodes
+
         # find the best attribute based on info_gain
         best_attribute = node.select_word()[0]
         # find the information gain for that attribute
@@ -179,13 +201,16 @@ class Tree:
         # split the given data
         node.split_data(1, find_index_from_word(best_attribute, node.vocabulary), node.entropy, info_gain_of_attribute)
         # form 2 matrices from the initial matrix
-
-        left_child_entropy = calculate_entropy(calculate_probabilities(node.left_side.matrix))
-        right_child_entropy = calculate_entropy(calculate_probabilities(node.right_side.matrix))
         left_child = node.left_side
         right_child = node.right_side
         split_result = split_matrix(node, best_attribute)
         left_child.matrix, right_child.matrix = split_result[0], split_result[1]
+
+        print("working currently with:")
+        print(node.print_node())
+        left_child_entropy = calculate_entropy(calculate_probabilities(left_child.matrix))
+        right_child_entropy = calculate_entropy(calculate_probabilities(right_child.matrix))
+
         left_child.entropy = left_child_entropy
         right_child.entropy = right_child_entropy
         node.print_node()
@@ -212,12 +237,17 @@ if __name__ == '__main__':
     testa = [0, 0, 0, 0]
     testb = [1, 0, 0, 0]
     testac = [1, 0, 0, 1]
+    testab = [0, 0, 0, 1]
     test_vocabulary = ["hun", "love", "boo", "bae"]
-    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"]]
+    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"],[testab, "neg"]]
     print(test_matrix)
     test_entropy = calculate_entropy(calculate_probabilities(test_matrix))
     print(test_entropy)
     initial_node = Node(test_entropy, 0, test_matrix, None, None, None, test_vocabulary)
-    initial_node.print_node()
+    # initial_node.print_node()
     test_tree = Tree(initial_node)
     test_tree.construct_tree(initial_node)
+    print()
+    print("printing the whole tree:")
+    print()
+    # test_tree.print_tree(initial_node)

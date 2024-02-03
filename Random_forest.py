@@ -1,8 +1,12 @@
 import os
 import glob
+import random
+
 import nltk
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.tokenize import word_tokenize
+
+import id3
 
 nltk.download('punkt')
 from nltk.corpus import stopwords
@@ -110,6 +114,36 @@ def create3d_matrix(category, vectorized_text):
     print(array_of_sets)
 
 
+def bootsrtapping(data):
+    pass
+
+
+def train_trees(data):
+    # step 1
+    tree_collection = []
+    new_data = bootsrtapping(data)
+    for i in range(50):
+        node = id3.Node(new_data[i])
+        tree = id3.Tree(node)
+        tree_collection.append(tree)
+
+
+def pick_a_tree(tree_collection):
+    return random.choice(tree_collection)
+
+
+def random_forest(tree_collection, data):
+    test_data = bootsrtapping(data)
+    for element in test_data:
+        selected_tree = pick_a_tree(tree_collection)
+        tree_collection.remove(selected_tree)
+        current_node = selected_tree.root
+        if current_node.is_leaf_node():
+            return current_node.final_decision()
+        if element.contains_attribute(current_node.best_attribute):
+            random_forest(tree_collection, current_node.left_side)
+        else:
+            random_forest(tree_collection, current_node.right_side)
 
 if __name__ == '__main__':
     filepath = "C:/Users/alex/Desktop/txt_test"
@@ -120,9 +154,9 @@ if __name__ == '__main__':
     # print(text_to_array(data, vocabulary))
     create3d_matrix(0, vectorized_text)
 
-    testa = [0,0,0,0]
-    testb = [1,0,0,0]
-    testac = [0,0,0,1]
+    testa = [0, 0, 0, 0]
+    testb = [1, 0, 0, 0]
+    testac = [0, 0, 0, 1]
 
     testf = []
     testf.append(testa)
