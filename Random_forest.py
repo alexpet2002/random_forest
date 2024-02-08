@@ -3,6 +3,7 @@ import glob
 import random
 
 import nltk
+import numpy as np
 from sklearn.ensemble import BaggingClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.tokenize import word_tokenize
@@ -105,13 +106,45 @@ def create3d_matrix(category, vectorized_text):
     print(array_of_sets)
 
 
-def bootstrapping(text_files_path):
+def extract_data_from_files(text_files_path):
     # List all files in the folder
     files = os.listdir(text_files_path)
 
     # Choose a random file from either positive or negative category
     random_file = random.choice(files)
     return random_file
+
+
+# def matrix_bootstrapping(base, nsample):
+#     m, n = np.shape(base)
+#     idx = np.random.randint(0, m, (nsample, m))
+#     out = base[idx].swapaxes(0, 1)
+#     return out
+
+def bootstrap_data(matrix, num_bootstrap_samples=2):
+    """
+    Bootstrap the data from a 3D array.
+
+    Parameters:
+    - matrix: The 3D array to bootstrap.
+    - num_bootstrap_samples: Number of bootstrap samples to generate.
+
+    Returns:
+    - bootstrapped_data: List of bootstrap samples.
+    """
+    # Convert to numpy array for easier manipulation
+    matrix_np = np.array(matrix)
+
+    # Bootstrap the data
+    bootstrapped_data = []
+    for _ in range(num_bootstrap_samples):
+        # Randomly sample rows with replacement
+        bootstrap_sample = matrix_np[np.random.choice(matrix_np.shape[0], size=matrix_np.shape[0], replace=True)]
+
+        # Append the bootstrap sample to the result
+        bootstrapped_data.append(bootstrap_sample)
+
+    return bootstrapped_data
 
 
 def add_label(folder_label, array):
@@ -146,7 +179,7 @@ def train_trees(filepath, folder_label, n):
     for i in range(n):
         new_vocabulary = break_vocabulary(initial_vocabulary, 4)
         new_matrix = break_matrix(initial_matrix, new_vocabulary)
-        node = id3.Node(None, None, new_matrix, None, None, None,None, None)
+        node = id3.Node(None, None, new_matrix, None, None, None, None, None)
         tree = id3.Tree(node)
         tree.construct_tree(node)
         trained_trees.append(tree)
@@ -198,11 +231,11 @@ if __name__ == '__main__':
 
     testa = [0, 0, 0, 0]
     testb = [1, 0, 0, 0]
-    testac = [0, 0, 0, 1]
-
-    testf = []
-    testf.append(testa)
-    testf.append(testb)
-    testf.append(testac)
+    testac = [1, 0, 0, 1]
+    testab = [0, 0, 0, 1]
+    test_vocabulary = ["hun", "love", "boo", "bae"]
+    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"], [testab, "neg"]]
+    small_matrix = bootstrap_data(test_matrix)
+    print(small_matrix)
     # probab = calculate_probabilities(testf)
     # print(calculate_entropy(probab))
