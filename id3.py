@@ -110,6 +110,7 @@ class Node:
     def final_decision(self):
         if self.is_leaf_node():
             return self.percentage_check()[1]
+
     def is_leaf_node(self):
         return self.is_data_homogeneous() or len(self.matrix) == 1 or self.percentage_check()[0]
 
@@ -239,7 +240,7 @@ if __name__ == '__main__':
     testac = [1, 0, 0, 1]
     testab = [0, 0, 0, 1]
     test_vocabulary = ["hun", "love", "boo", "bae"]
-    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"],[testab, "neg"]]
+    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"], [testab, "neg"]]
     print(test_matrix)
     test_entropy = calculate_entropy(calculate_probabilities(test_matrix))
     print(test_entropy)

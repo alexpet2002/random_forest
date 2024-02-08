@@ -3,8 +3,11 @@ import glob
 import random
 
 import nltk
+from sklearn.ensemble import BaggingClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.tokenize import word_tokenize
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.utils import resample
 
 import id3
 
@@ -65,7 +68,6 @@ def create_vocab(tokenized_text, m, n, k):
     common_words = [element for element, _ in common_words_and_freq]
 
     # define the vocabulary
-    # TODO: remove the elements till the n index and anything later than m+n index
     # Create a binary vector for each text
     filtered_vocab = common_words[n:n + m]
     print(filtered_vocab)
@@ -77,17 +79,6 @@ def tokenize_text(data):
     tokenized_texts = [word_tokenize(text.lower()) for text in data]
     return tokenized_texts
 
-
-#
-# def text_to_array(data, filtered_vocab):
-#     binary_array = []
-#     x = len(data)
-#     for i in range(x):
-#         if data[i] in filtered_vocab:
-#             binary_array.append(1)
-#         else:
-#             binary_array.append(0)
-#     return binary_array
 
 def text_to_array(data, filtered_vocab):
     binary_array = [1 if char in filtered_vocab else 0 for char in data]
@@ -107,43 +98,94 @@ def vectorize_text(data, filtered_vocab):
 
 
 def create3d_matrix(category, vectorized_text):
-    label = ("negative" if category == 0 else "positive")
+    label = ("neg" if category == 0 else "pos")
     array_of_sets = []
     for element in vectorized_text:
         array_of_sets.append([element, label])
     print(array_of_sets)
 
 
-def bootsrtapping(data):
+def bootstrapping(text_files_path):
+    # List all files in the folder
+    files = os.listdir(text_files_path)
+
+    # Choose a random file from either positive or negative category
+    random_file = random.choice(files)
+    return random_file
+
+
+def add_label(folder_label, array):
+    label = ("neg" if folder_label == 0 else "pos")
+    return [array, label]
+
+
+def select_random_samples(filepath):
     pass
 
 
-def train_trees(data):
-    # step 1
-    tree_collection = []
-    new_data = bootsrtapping(data)
-    for i in range(50):
-        node = id3.Node(new_data[i])
+# important!!! should be applied to pos and neg separately
+def create_matrix_and_vocab(filepath, folder_label):
+    text_collection = select_random_samples(filepath)
+    test_data = read_file(filepath)
+    tokenized_text = tokenize_text(test_data)
+    test_vocabulary = create_vocab(tokenized_text, 5, 30, 5)
+    matrix = []
+    for i in range(len(text_collection)):
+        vectorized_text = vectorize_text(text_collection[i], test_vocabulary)
+        array = text_to_array(vectorized_text, vocabulary)
+        matrix.append(add_label(folder_label, array))
+
+    return matrix, test_vocabulary
+
+
+def train_trees(filepath, folder_label, n):
+    # n indicates number of trees
+    initial_matrix = create_matrix_and_vocab(filepath, folder_label)[0]
+    initial_vocabulary = create_matrix_and_vocab(filepath, folder_label)[1]
+    trained_trees = []
+    for i in range(n):
+        new_vocabulary = break_vocabulary(initial_vocabulary, 4)
+        new_matrix = break_matrix(initial_matrix, new_vocabulary)
+        node = id3.Node(None, None, new_matrix, None, None, None,None, None)
         tree = id3.Tree(node)
-        tree_collection.append(tree)
+        tree.construct_tree(node)
+        trained_trees.append(tree)
+    return trained_trees
+
+
+def break_vocabulary(vocabulary, m):
+    # m indicates the number of attributes
+    # returns a random subset of a vocabulary
+    pass
+
+
+def break_matrix(intial_matrix, vocabulary):
+    # returns a subset ov values based on vocabulary
+    pass
 
 
 def pick_a_tree(tree_collection):
     return random.choice(tree_collection)
 
 
-def random_forest(tree_collection, data):
-    test_data = bootsrtapping(data)
-    for element in test_data:
-        selected_tree = pick_a_tree(tree_collection)
-        tree_collection.remove(selected_tree)
-        current_node = selected_tree.root
-        if current_node.is_leaf_node():
-            return current_node.final_decision()
-        if element.contains_attribute(current_node.best_attribute):
-            random_forest(tree_collection, current_node.left_side)
-        else:
-            random_forest(tree_collection, current_node.right_side)
+def traverse_tree(tree_collection, data):
+    while not (len(tree_collection) == 0):
+        for element in data:
+            selected_tree = pick_a_tree(tree_collection)
+            tree_collection.remove(selected_tree)
+            current_node = selected_tree.root
+            if current_node.is_leaf_node():
+                return current_node.final_decision()
+            if element.contains_attribute(current_node.best_attribute):
+                traverse_tree(tree_collection, current_node.left_side)
+            else:
+                traverse_tree(tree_collection, current_node.right_side)
+
+
+def random_forest(train_folder_path, test_folder_path):
+    # train data
+    trained_trees = train_trees(train_folder_path)
+
 
 if __name__ == '__main__':
     filepath = "C:/Users/alex/Desktop/txt_test"
