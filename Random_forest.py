@@ -202,7 +202,7 @@ def train_trees(pos_directory, neg_directory, n):
     test_data_1 = read_and_merge_files(pos_directory)
     test_data_2 = read_and_merge_files(neg_directory)
     tokenized_text = tokenize_text(test_data_1) + tokenize_text(test_data_2)
-    initial_vocabulary = create_vocab(tokenized_text, 5, 30, 5)
+    initial_vocabulary = create_vocab(tokenized_text, 50, 150, 250)
     print("vocabulary to be used: ")
     print(initial_vocabulary)
     pos_initial_matrix = create_matrix(pos_directory, "pos", initial_vocabulary)
