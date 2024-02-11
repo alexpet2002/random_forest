@@ -166,7 +166,6 @@ class Node:
             if sum_of_gains > max_information_gain:
                 max_information_gain = sum_of_gains
                 best_attribute = find_word_from_index(i, self.vocabulary)
-        print(best_attribute)
         self.best_attribute = best_attribute
         self.inf_gain = info_gain_per_attribute
         return best_attribute, max_information_gain
@@ -188,6 +187,9 @@ class Tree:
         self.leaf_nodes = []
 
     def construct_tree(self, node):
+        if node.parent_node is None:
+            self.root = node
+
         if node.is_leaf_node():
             self.leaf_nodes.append(node)
             print("reached leaf node..")
@@ -204,7 +206,9 @@ class Tree:
         right_child = node.right_side
         split_result = split_matrix(node, best_attribute)
         left_child.matrix, right_child.matrix = split_result[0], split_result[1]
-
+        left_child.parent_node, right_child.parent_node = node
+        node.best_attribute = best_attribute
+        print(node.best_attribute)
         print("working currently with:")
         print(node.print_node())
         left_child_entropy = calculate_entropy(calculate_probabilities(left_child.matrix))
@@ -213,6 +217,7 @@ class Tree:
         left_child.entropy = left_child_entropy
         right_child.entropy = right_child_entropy
         node.print_node()
+
         print("left node: ")
         left_child.print_node()
         print("right node: ")
@@ -249,4 +254,3 @@ if __name__ == '__main__':
     print()
     print("printing the whole tree:")
     print()
-    # test_tree.print_tree(initial_node)

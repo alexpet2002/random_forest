@@ -6,6 +6,7 @@ import nltk
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.tokenize import word_tokenize
 import id3
+
 nltk.download('punkt')
 from nltk.corpus import stopwords
 from collections import Counter
@@ -121,9 +122,6 @@ def text_to_array(data, filtered_vocab):
 
 
 def vectorize_text(data, filtered_vocab):
-    document = ["One Geek helps Two Geeks",
-                "Two Geeks help Four Geeks",
-                "Each Geek helps many other Geeks at GeeksforGeeks"]
     vectorized_text = CountVectorizer(vocabulary=filtered_vocab, binary=True)
     x = vectorized_text.fit_transform(data)
     # Convert counts to binary values
@@ -181,10 +179,6 @@ def add_label(folder_label, array):
     return [array, label]
 
 
-def select_random_samples(filepath):
-    pass
-
-
 def create_matrix(filepath, folder_label, vocabulary):
     directory = get_file_directories(filepath)
     data = []
@@ -203,10 +197,11 @@ def merge(positive, negative):
     return positive + negative
 
 
-def train_trees(filepath, pos_directory, neg_directory, n):
+def train_trees(pos_directory, neg_directory, n):
     # n indicates number of trees
-    test_data = read_and_merge_files(filepath)
-    tokenized_text = tokenize_text(test_data)
+    test_data_1 = read_and_merge_files(pos_directory)
+    test_data_2 = read_and_merge_files(neg_directory)
+    tokenized_text = tokenize_text(test_data_1) + tokenize_text(test_data_2)
     initial_vocabulary = create_vocab(tokenized_text, 5, 30, 5)
     print("vocabulary to be used: ")
     print(initial_vocabulary)
@@ -223,6 +218,7 @@ def train_trees(filepath, pos_directory, neg_directory, n):
         node = id3.Node(None, None, new_matrix, None, None, None, new_vocab, None)
         tree = id3.Tree(node)
         tree.construct_tree(node)
+        print(tree.root.best_attribute)
         trained_trees.append(tree)
     return trained_trees
 
@@ -247,7 +243,7 @@ def read_text_file(file_path):
     return text_array
 
 
-def traverse_tree(tree, data, node=None):
+def traverse_tree(tree, data, node):
     if node is None:
         node = tree.root
     best_attribute = node.best_attribute
@@ -260,13 +256,13 @@ def traverse_tree(tree, data, node=None):
         traverse_tree(tree, node.right_side)
 
 
-def random_forest(train_folder_path, pos, neg, test_folder_path, n):
+def random_forest(pos, neg, test_folder_path_pos, test_folder_path_neg, n):
     # train data
     print("Starting random forest algorithm!")
     print("Training trees...")
-    trained_trees = train_trees(train_folder_path, pos, neg, n)
+    trained_trees = train_trees(pos, neg, n)
     vocab = trained_trees[0].root.vocabulary
-    test_data_directories = get_file_directories(test_folder_path)
+    test_data_directories = get_file_directories(test_folder_path_pos) + get_file_directories(test_folder_path_neg)
     predicted_labels = []
     for file_directory in test_data_directories:
         text = read_text_file(file_directory)
@@ -280,7 +276,7 @@ def random_forest(train_folder_path, pos, neg, test_folder_path, n):
 def final_decision_for_data(test_text, trained_trees):
     predictions = []
     for tree in trained_trees:
-        decision = traverse_tree(tree, test_text)
+        decision = traverse_tree(tree, test_text, tree.root)
         predictions.append(decision)
     count = Counter(predictions)
     return count.most_common(1)[0][0]
@@ -290,25 +286,13 @@ def random_indices_with_repetition(range_size, num_indices):
     return [random.randint(0, range_size - 1) for _ in range(num_indices)]
 
 
-def evaluate_performance(test_data, trained_trees):
+def evaluate_performance(test_data):
     true_labels = []
-    predicted_labels = []
 
     for file_directory in test_data:
-        text = read_text_file(file_directory)
-        vector_text = vectorize_text(text, vocab)
         true_label = "pos" if "pos" in file_directory else "neg"
         true_labels.append(true_label)
-
-        predictions = []
-        for tree in trained_trees:
-            decision = traverse_tree(tree, vector_text)
-            predictions.append(decision)
-
-        predicted_label = Counter(predictions).most_common(1)[0][0]
-        predicted_labels.append(predicted_label)
-
-    return true_labels, predicted_labels
+    return true_labels
 
 
 def calculate_metrics(true_labels, predicted_labels):
@@ -319,15 +303,17 @@ def calculate_metrics(true_labels, predicted_labels):
 
 
 if __name__ == '__main__':
-    filepath = "C:/Users/alex/Desktop/txt_test"
-    second_path = "C:/Users/alex/Desktop/test_neg"
-    random_forest(filepath, filepath, second_path, second_path, 5)
-    # Usage
-    # test_data_directories = get_file_directories(test_directory_pos) + get_file_directories(test_directory_neg)
-    # true_labels, predicted_labels = evaluate_performance(test_data_directories, trained_trees)
-    # accuracy, precision, f1 = calculate_metrics(true_labels, predicted_labels)
-    #
-    # # Print the results
-    # print(f"Accuracy: {accuracy:.4f}")
-    # print(f"Precision: {precision:.4f}")
-    # print(f"F1 Score: {f1:.4f}")
+    train_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/train/neg"
+    train_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/train/pos"
+    test_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/test/pos"
+    test_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/test/neg"
+    returns = random_forest(train_positive_path, train_negative_path, test_positive_path, test_negative_path, 500)
+    test_data_directories = returns[0]
+    predicted_labels = returns[1]
+    true_labels = evaluate_performance(test_data_directories)
+    accuracy, precision, f1 = calculate_metrics(true_labels, predicted_labels)
+
+    # Print the results
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"F1 Score: {f1:.4f}")
