@@ -1,19 +1,16 @@
+import copy
 import os
 import glob
 import random
-
 import nltk
-import numpy as np
-from sklearn.ensemble import BaggingClassifier
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.tokenize import word_tokenize
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.utils import resample
-
 import id3
-
 nltk.download('punkt')
 from nltk.corpus import stopwords
+from collections import Counter
+import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, f1_score
 
 # hyperparameters
 # m = 100  # Top m most frequent words
@@ -29,7 +26,7 @@ test_directory_neg = 'C:/Users/alex/Desktop/aclImdb_v1/aclImdb/test/neg'
 
 # step2: tokenize the text
 
-def read_file(file_path):
+def read_and_merge_files(file_path):
     try:
         file_list = glob.glob(os.path.join(file_path, '*.txt'))
         for file_name in file_list:
@@ -39,11 +36,50 @@ def read_file(file_path):
                 content = file.read()
                 word_list = content.split()
                 return word_list
-                print(word_list)
     except FileNotFoundError:
         print(f"File not found: {file_path}")
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
+def read_single_files(file_path):
+    words = []
+
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            # Read the content of the file
+            content = file.read()
+
+            # Split the content into words using whitespace as a separator
+            words = content.split()
+
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    return words
+
+
+def get_file_directories(folder_path):
+    file_array = []
+    # Check if the folder path exists
+    if os.path.exists(folder_path) and os.path.isdir(folder_path):
+        # Get a list of all files in the folder
+        files = os.listdir(folder_path)
+
+        # Iterate through each file in the folder
+        for file_name in files:
+            file_path = os.path.join(folder_path, file_name)
+
+            # Check if the path is a file (not a subdirectory)
+            if os.path.isfile(file_path):
+                # Append the file path to the array
+                file_array.append(file_path)
+
+    # Print the array of file paths
+    print(file_array)
+    return file_array
 
 
 def create_vocab(tokenized_text, m, n, k):
@@ -52,11 +88,10 @@ def create_vocab(tokenized_text, m, n, k):
 
     # show and remove stopwords
     nltk.download('stopwords')
-    print(stopwords.words('english'))
+
     stop_words = set(stopwords.words('english'))
     # filter the words so that the list doesn't include any stopwords
     filtered_words = [word for word in all_words if word.isalnum() and word not in stop_words]
-    print(filtered_words)
 
     # nltk.FreqDist info:
     # Construct a new frequency distribution. If samples is given, then the frequency distribution will be initialized with the count of each object in samples; otherwise, it will be initialized to be empty.
@@ -71,7 +106,6 @@ def create_vocab(tokenized_text, m, n, k):
     # define the vocabulary
     # Create a binary vector for each text
     filtered_vocab = common_words[n:n + m]
-    print(filtered_vocab)
     return filtered_vocab
 
 
@@ -87,14 +121,14 @@ def text_to_array(data, filtered_vocab):
 
 
 def vectorize_text(data, filtered_vocab):
+    document = ["One Geek helps Two Geeks",
+                "Two Geeks help Four Geeks",
+                "Each Geek helps many other Geeks at GeeksforGeeks"]
     vectorized_text = CountVectorizer(vocabulary=filtered_vocab, binary=True)
     x = vectorized_text.fit_transform(data)
-
     # Convert counts to binary values
     result = x.toarray()
-    result[result > 1] = 1
-
-    print(result)
+    # print(result)
     return result
 
 
@@ -115,36 +149,31 @@ def extract_data_from_files(text_files_path):
     return random_file
 
 
-# def matrix_bootstrapping(base, nsample):
-#     m, n = np.shape(base)
-#     idx = np.random.randint(0, m, (nsample, m))
-#     out = base[idx].swapaxes(0, 1)
-#     return out
+def bootstrap_data(matrix, vocabulary, num_of_attributes=3):
+    bootstrap_vocab = np.random.choice(vocabulary, size=num_of_attributes, replace=False)
+    bootstrap_vocab_indx = [id3.find_index_from_word(element, vocabulary) for element in bootstrap_vocab if
+                            element in vocabulary]
 
-def bootstrap_data(matrix, num_bootstrap_samples=2):
-    """
-    Bootstrap the data from a 3D array.
+    bootstrap_indx = random_indices_with_repetition(len(matrix) - 1, len(matrix))
 
-    Parameters:
-    - matrix: The 3D array to bootstrap.
-    - num_bootstrap_samples: Number of bootstrap samples to generate.
+    bootstrapped_rows = [matrix[bootstrap_indx[i]] for i in range(len(bootstrap_indx))]
+    bootstrapped_rows_copy = copy.deepcopy(bootstrapped_rows)
+    bootstrapped_matrix = filter_matrix(bootstrap_vocab_indx, bootstrapped_rows_copy)
+    return bootstrapped_matrix, bootstrap_vocab
 
-    Returns:
-    - bootstrapped_data: List of bootstrap samples.
-    """
-    # Convert to numpy array for easier manipulation
-    matrix_np = np.array(matrix)
 
-    # Bootstrap the data
-    bootstrapped_data = []
-    for _ in range(num_bootstrap_samples):
-        # Randomly sample rows with replacement
-        bootstrap_sample = matrix_np[np.random.choice(matrix_np.shape[0], size=matrix_np.shape[0], replace=True)]
+def filter_matrix(bootstrap_vocab_indx, bootstrapped_rows):
+    filtered_matrix = []
+    for j in range(len(bootstrapped_rows)):
+        array = bootstrapped_rows[j][0]
+        new_array = filter_array_by_indices(array, bootstrap_vocab_indx)
+        filtered_matrix.append([new_array, bootstrapped_rows[j][1]])
+    return filtered_matrix
 
-        # Append the bootstrap sample to the result
-        bootstrapped_data.append(bootstrap_sample)
 
-    return bootstrapped_data
+def filter_array_by_indices(input_array, indices):
+    filtered_array = [input_array[element] for element in indices]
+    return filtered_array
 
 
 def add_label(folder_label, array):
@@ -156,86 +185,149 @@ def select_random_samples(filepath):
     pass
 
 
-# important!!! should be applied to pos and neg separately
-def create_matrix_and_vocab(filepath, folder_label):
-    text_collection = select_random_samples(filepath)
-    test_data = read_file(filepath)
-    tokenized_text = tokenize_text(test_data)
-    test_vocabulary = create_vocab(tokenized_text, 5, 30, 5)
+def create_matrix(filepath, folder_label, vocabulary):
+    directory = get_file_directories(filepath)
+    data = []
+    for element in directory:
+        words = read_text_file(element)
+        data.append(words[0])
+    vectorized_text = vectorize_text(data, vocabulary)
     matrix = []
-    for i in range(len(text_collection)):
-        vectorized_text = vectorize_text(text_collection[i], test_vocabulary)
-        array = text_to_array(vectorized_text, vocabulary)
-        matrix.append(add_label(folder_label, array))
+    for element in vectorized_text:
+        matrix.append(add_label(folder_label, element))
 
-    return matrix, test_vocabulary
+    return matrix
 
 
-def train_trees(filepath, folder_label, n):
+def merge(positive, negative):
+    return positive + negative
+
+
+def train_trees(filepath, pos_directory, neg_directory, n):
     # n indicates number of trees
-    initial_matrix = create_matrix_and_vocab(filepath, folder_label)[0]
-    initial_vocabulary = create_matrix_and_vocab(filepath, folder_label)[1]
+    test_data = read_and_merge_files(filepath)
+    tokenized_text = tokenize_text(test_data)
+    initial_vocabulary = create_vocab(tokenized_text, 5, 30, 5)
+    print("vocabulary to be used: ")
+    print(initial_vocabulary)
+    pos_initial_matrix = create_matrix(pos_directory, "pos", initial_vocabulary)
+    neg_initial_matrix = create_matrix(neg_directory, "neg", initial_vocabulary)
+    initial_matrix = merge(pos_initial_matrix, neg_initial_matrix)
+    print("matrix to be used:")
+    print(initial_matrix)
     trained_trees = []
     for i in range(n):
-        new_vocabulary = break_vocabulary(initial_vocabulary, 4)
-        new_matrix = break_matrix(initial_matrix, new_vocabulary)
-        node = id3.Node(None, None, new_matrix, None, None, None, None, None)
+        new_matrix_new_vocab = bootstrap_data(initial_matrix, initial_vocabulary)
+        new_matrix = new_matrix_new_vocab[0]
+        new_vocab = new_matrix_new_vocab[1]
+        node = id3.Node(None, None, new_matrix, None, None, None, new_vocab, None)
         tree = id3.Tree(node)
         tree.construct_tree(node)
         trained_trees.append(tree)
     return trained_trees
 
 
-def break_vocabulary(vocabulary, m):
-    # m indicates the number of attributes
-    # returns a random subset of a vocabulary
-    pass
-
-
-def break_matrix(intial_matrix, vocabulary):
-    # returns a subset ov values based on vocabulary
-    pass
-
-
 def pick_a_tree(tree_collection):
     return random.choice(tree_collection)
 
 
-def traverse_tree(tree_collection, data):
-    while not (len(tree_collection) == 0):
-        for element in data:
-            selected_tree = pick_a_tree(tree_collection)
-            tree_collection.remove(selected_tree)
-            current_node = selected_tree.root
-            if current_node.is_leaf_node():
-                return current_node.final_decision()
-            if element.contains_attribute(current_node.best_attribute):
-                traverse_tree(tree_collection, current_node.left_side)
-            else:
-                traverse_tree(tree_collection, current_node.right_side)
+def read_text_file(file_path):
+    text_array = []
+
+    try:
+        # Open the file in read mode
+        with open(file_path, 'r') as file:
+            # Read each line and append it to the array
+            for line in file:
+                text_array.append(line.strip())  # strip() removes leading and trailing whitespaces
+
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
+
+    return text_array
 
 
-def random_forest(train_folder_path, test_folder_path):
+def traverse_tree(tree, data, node=None):
+    if node is None:
+        node = tree.root
+    best_attribute = node.best_attribute
+    attribute_index = id3.find_index_from_word(best_attribute, node.vocabulary)
+    if node.is_leaf_node():
+        return node.final_decision()
+    if data[attribute_index] == 1:
+        traverse_tree(tree, node.left_side)
+    else:
+        traverse_tree(tree, node.right_side)
+
+
+def random_forest(train_folder_path, pos, neg, test_folder_path, n):
     # train data
-    trained_trees = train_trees(train_folder_path)
+    print("Starting random forest algorithm!")
+    print("Training trees...")
+    trained_trees = train_trees(train_folder_path, pos, neg, n)
+    vocab = trained_trees[0].root.vocabulary
+    test_data_directories = get_file_directories(test_folder_path)
+    predicted_labels = []
+    for file_directory in test_data_directories:
+        text = read_text_file(file_directory)
+        vector_text = vectorize_text(text, vocab)
+        prediction = final_decision_for_data(vector_text, trained_trees)
+        print(f"Final decision is for the file: {file_directory} is {prediction}")
+        predicted_labels.append(prediction)
+    return test_data_directories, predicted_labels
+
+
+def final_decision_for_data(test_text, trained_trees):
+    predictions = []
+    for tree in trained_trees:
+        decision = traverse_tree(tree, test_text)
+        predictions.append(decision)
+    count = Counter(predictions)
+    return count.most_common(1)[0][0]
+
+
+def random_indices_with_repetition(range_size, num_indices):
+    return [random.randint(0, range_size - 1) for _ in range(num_indices)]
+
+
+def evaluate_performance(test_data, trained_trees):
+    true_labels = []
+    predicted_labels = []
+
+    for file_directory in test_data:
+        text = read_text_file(file_directory)
+        vector_text = vectorize_text(text, vocab)
+        true_label = "pos" if "pos" in file_directory else "neg"
+        true_labels.append(true_label)
+
+        predictions = []
+        for tree in trained_trees:
+            decision = traverse_tree(tree, vector_text)
+            predictions.append(decision)
+
+        predicted_label = Counter(predictions).most_common(1)[0][0]
+        predicted_labels.append(predicted_label)
+
+    return true_labels, predicted_labels
+
+
+def calculate_metrics(true_labels, predicted_labels):
+    accuracy = accuracy_score(true_labels, predicted_labels)
+    precision = precision_score(true_labels, predicted_labels, pos_label="pos")
+    f1 = f1_score(true_labels, predicted_labels, pos_label="pos")
+    return accuracy, precision, f1
 
 
 if __name__ == '__main__':
     filepath = "C:/Users/alex/Desktop/txt_test"
-    data = read_file(filepath)
-    tokenized_text = tokenize_text(data)
-    vocabulary = create_vocab(tokenized_text, 5, 30, 5)
-    vectorized_text = vectorize_text(data, vocabulary)
-    # print(text_to_array(data, vocabulary))
-    create3d_matrix(0, vectorized_text)
-
-    testa = [0, 0, 0, 0]
-    testb = [1, 0, 0, 0]
-    testac = [1, 0, 0, 1]
-    testab = [0, 0, 0, 1]
-    test_vocabulary = ["hun", "love", "boo", "bae"]
-    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"], [testab, "neg"]]
-    small_matrix = bootstrap_data(test_matrix)
-    print(small_matrix)
-    # probab = calculate_probabilities(testf)
-    # print(calculate_entropy(probab))
+    second_path = "C:/Users/alex/Desktop/test_neg"
+    random_forest(filepath, filepath, second_path, second_path, 5)
+    # Usage
+    # test_data_directories = get_file_directories(test_directory_pos) + get_file_directories(test_directory_neg)
+    # true_labels, predicted_labels = evaluate_performance(test_data_directories, trained_trees)
+    # accuracy, precision, f1 = calculate_metrics(true_labels, predicted_labels)
+    #
+    # # Print the results
+    # print(f"Accuracy: {accuracy:.4f}")
+    # print(f"Precision: {precision:.4f}")
+    # print(f"F1 Score: {f1:.4f}")

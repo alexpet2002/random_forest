@@ -191,8 +191,6 @@ class Tree:
         if node.is_leaf_node():
             self.leaf_nodes.append(node)
             print("reached leaf node..")
-            print("final decision: ")
-            print(node.final_decision())
             return self.leaf_nodes
 
         # find the best attribute based on info_gain
