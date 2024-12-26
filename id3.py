@@ -45,7 +45,7 @@ def find_index_from_word(word, vocabulary):
     try:
         return vocabulary.index(word)
     except Exception as e:
-        print("word was null")
+        print()
 
 
 def find_word_from_index(index, vocabulary):
@@ -235,22 +235,3 @@ class Tree:
             node.print_node()
             print(node.left_side)
             print(node.right_side)
-
-
-if __name__ == '__main__':
-    testa = [0, 0, 0, 0]
-    testb = [1, 0, 0, 0]
-    testac = [1, 0, 0, 1]
-    testab = [0, 0, 0, 1]
-    test_vocabulary = ["hun", "love", "boo", "bae"]
-    test_matrix = [[testa, "neg"], [testb, "pos"], [testac, "neg"], [testab, "neg"]]
-    print(test_matrix)
-    test_entropy = calculate_entropy(calculate_probabilities(test_matrix))
-    print(test_entropy)
-    initial_node = Node(test_entropy, 0, test_matrix, None, None, None, test_vocabulary)
-    # initial_node.print_node()
-    test_tree = Tree(initial_node)
-    test_tree.construct_tree(initial_node)
-    print()
-    print("printing the whole tree:")
-    print()

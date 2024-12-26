@@ -6,33 +6,28 @@ import nltk
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.tokenize import word_tokenize
 import id3
-
-nltk.download('punkt')
 from nltk.corpus import stopwords
 from collections import Counter
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, f1_score
 
+nltk.download('punkt')
+
+
 # hyperparameters
-# m = 100  # Top m most frequent words
-# n = 50  # Skip the top n most frequent words
-# k = 50  # Skip the top k rare words
+# m   # Top m most frequent words
+# n   # Skip the top n most frequent words
+# k   # Skip the top k rare words
 
 # step1: load the text
-train_directory_pos = 'C:/Users/alex/Desktop/aclImdb_v1/aclImdb/train/pos'
-train_directory_neg = 'C:/Users/alex/Desktop/aclImdb_v1/aclImdb/train/neg'
-test_directory_pos = 'C:/Users/alex/Desktop/aclImdb_v1/aclImdb/test/pos'
-test_directory_neg = 'C:/Users/alex/Desktop/aclImdb_v1/aclImdb/test/neg'
 
-
-# step2: tokenize the text
 
 def read_and_merge_files(file_path):
     try:
         file_list = glob.glob(os.path.join(file_path, '*.txt'))
         for file_name in file_list:
             current_file_path = os.path.join(file_path, file_name)
-            with open(current_file_path, 'r') as file:
+            with open(current_file_path, 'r', encoding='utf-8') as file:
                 # Do something with the file, e.g., read its contents
                 content = file.read()
                 word_list = content.split()
@@ -78,9 +73,16 @@ def get_file_directories(folder_path):
                 # Append the file path to the array
                 file_array.append(file_path)
 
-    # Print the array of file paths
-    print(file_array)
     return file_array
+
+
+# step2: tokenize the text
+
+
+def tokenize_text(data):
+    # Tokenize the texts and make the words lowercase
+    tokenized_texts = [word_tokenize(text.lower()) for text in data]
+    return tokenized_texts
 
 
 def create_vocab(tokenized_text, m, n, k):
@@ -93,10 +95,6 @@ def create_vocab(tokenized_text, m, n, k):
     stop_words = set(stopwords.words('english'))
     # filter the words so that the list doesn't include any stopwords
     filtered_words = [word for word in all_words if word.isalnum() and word not in stop_words]
-
-    # nltk.FreqDist info:
-    # Construct a new frequency distribution. If samples is given, then the frequency distribution will be initialized with the count of each object in samples; otherwise, it will be initialized to be empty.
-    # In particular, FreqDist() returns an empty frequency distribution; and FreqDist(samples) first creates an empty frequency distribution, and then calls update with the list samples.
     word_freq = nltk.FreqDist(filtered_words)
 
     # find m,n,k most frequent words
@@ -110,17 +108,6 @@ def create_vocab(tokenized_text, m, n, k):
     return filtered_vocab
 
 
-def tokenize_text(data):
-    # Tokenize the texts and make the words lowercase
-    tokenized_texts = [word_tokenize(text.lower()) for text in data]
-    return tokenized_texts
-
-
-def text_to_array(data, filtered_vocab):
-    binary_array = [1 if char in filtered_vocab else 0 for char in data]
-    return binary_array
-
-
 def vectorize_text(data, filtered_vocab):
     vectorized_text = CountVectorizer(vocabulary=filtered_vocab, binary=True)
     x = vectorized_text.fit_transform(data)
@@ -128,14 +115,6 @@ def vectorize_text(data, filtered_vocab):
     result = x.toarray()
     # print(result)
     return result
-
-
-def create3d_matrix(category, vectorized_text):
-    label = ("neg" if category == 0 else "pos")
-    array_of_sets = []
-    for element in vectorized_text:
-        array_of_sets.append([element, label])
-    print(array_of_sets)
 
 
 def extract_data_from_files(text_files_path):
@@ -201,8 +180,9 @@ def train_trees(pos_directory, neg_directory, n):
     # n indicates number of trees
     test_data_1 = read_and_merge_files(pos_directory)
     test_data_2 = read_and_merge_files(neg_directory)
-    tokenized_text = tokenize_text(test_data_1) + tokenize_text(test_data_2)
-    initial_vocabulary = create_vocab(tokenized_text, 50, 150, 250)
+    test_data = test_data_1 + test_data_2
+    tokenized_text = tokenize_text(test_data)
+    initial_vocabulary = create_vocab(tokenized_text, 20, 50, 80)
     print("vocabulary to be used: ")
     print(initial_vocabulary)
     pos_initial_matrix = create_matrix(pos_directory, "pos", initial_vocabulary)
@@ -218,13 +198,8 @@ def train_trees(pos_directory, neg_directory, n):
         node = id3.Node(None, None, new_matrix, None, None, None, new_vocab, None)
         tree = id3.Tree(node)
         tree.construct_tree(node)
-        print(tree.root.best_attribute)
         trained_trees.append(tree)
     return trained_trees
-
-
-def pick_a_tree(tree_collection):
-    return random.choice(tree_collection)
 
 
 def read_text_file(file_path):
@@ -251,9 +226,9 @@ def traverse_tree(tree, data, node):
     if node.is_leaf_node():
         return node.final_decision()
     if data[attribute_index] == 1:
-        traverse_tree(tree, node.left_side)
+        traverse_tree(tree, node.left_side.matrix, node.left_side)
     else:
-        traverse_tree(tree, node.right_side)
+        traverse_tree(tree, node.right_side.matrix, node.right_side)
 
 
 def random_forest(pos, neg, test_folder_path_pos, test_folder_path_neg, n):
@@ -302,18 +277,45 @@ def calculate_metrics(true_labels, predicted_labels):
     return accuracy, precision, f1
 
 
-if __name__ == '__main__':
-    train_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/train/neg"
-    train_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/train/pos"
-    test_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/test/pos"
-    test_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/test/neg"
-    returns = random_forest(train_positive_path, train_negative_path, test_positive_path, test_negative_path, 500)
+def evaluate_random_forest():
+    folders = get_folder_directories()
+    returns = random_forest(folders[0], folders[1], folders[2], folders[3], 500)
     test_data_directories = returns[0]
     predicted_labels = returns[1]
     true_labels = evaluate_performance(test_data_directories)
     accuracy, precision, f1 = calculate_metrics(true_labels, predicted_labels)
-
     # Print the results
     print(f"Accuracy: {accuracy:.4f}")
     print(f"Precision: {precision:.4f}")
     print(f"F1 Score: {f1:.4f}")
+
+
+def get_folder_directories():
+    folders = []
+
+    try:
+        # Get folder directories for training data
+        folder = input(f"Enter directory for positive training folder: ")
+        folders.append(folder)
+
+        folder2 = input(f"Enter directory for negative training folder: ")
+        folders.append(folder2)
+
+        # Get folder directories for test data
+        folder3 = input(f"Enter directory for positive test folder: ")
+        folders.append(folder3)
+
+        folder3 = input(f"Enter directory for negative test folder: ")
+        folders.append(folder3)
+        return folders
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+if __name__ == '__main__':
+    # my directories
+    # train_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/train/neg"
+    # train_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/train/pos"
+    # test_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/test/pos"
+    # test_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/test/neg"
+    evaluate_random_forest()
