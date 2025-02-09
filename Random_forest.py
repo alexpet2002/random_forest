@@ -10,12 +10,13 @@ from nltk.corpus import stopwords
 from collections import Counter
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, f1_score
-
+import id3_alt
 nltk.download('punkt')
 
 
 # hyperparameters
 # m   # Top m most frequent words
+# n   # Skip the top n most frequent words
 # n   # Skip the top n most frequent words
 # k   # Skip the top k rare words
 
@@ -130,7 +131,7 @@ def bootstrap_data(matrix, vocabulary, num_of_attributes=3):
     bootstrap_vocab = np.random.choice(vocabulary, size=num_of_attributes, replace=False)
     bootstrap_vocab_indx = [id3.find_index_from_word(element, vocabulary) for element in bootstrap_vocab if
                             element in vocabulary]
-
+    print(bootstrap_vocab_indx)
     bootstrap_indx = random_indices_with_repetition(len(matrix) - 1, len(matrix))
 
     bootstrapped_rows = [matrix[bootstrap_indx[i]] for i in range(len(bootstrap_indx))]
@@ -154,8 +155,8 @@ def filter_array_by_indices(input_array, indices):
 
 
 def add_label(folder_label, array):
-    label = ("neg" if folder_label == 0 else "pos")
-    return [array, label]
+    # label = ("neg" if folder_label == 0 else "pos")
+    return [array, folder_label]
 
 
 def create_matrix(filepath, folder_label, vocabulary):
@@ -186,7 +187,11 @@ def train_trees(pos_directory, neg_directory, n):
     print("vocabulary to be used: ")
     print(initial_vocabulary)
     pos_initial_matrix = create_matrix(pos_directory, "pos", initial_vocabulary)
+    print("positive matrix:")
+    print(pos_initial_matrix)
     neg_initial_matrix = create_matrix(neg_directory, "neg", initial_vocabulary)
+    print("negative matrix:")
+    print(neg_initial_matrix)
     initial_matrix = merge(pos_initial_matrix, neg_initial_matrix)
     print("matrix to be used:")
     print(initial_matrix)
@@ -207,7 +212,7 @@ def read_text_file(file_path):
 
     try:
         # Open the file in read mode
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
             # Read each line and append it to the array
             for line in file:
                 text_array.append(line.strip())  # strip() removes leading and trailing whitespaces
@@ -313,9 +318,13 @@ def get_folder_directories():
 
 
 if __name__ == '__main__':
+    # C:/Users/alex/Desktop/test_data/neg
+    # C:/Users/alex/Desktop/test_data/pos
+    # C:/Users/alex/Desktop/test_data/test/neg
+    # C:/Users/alex/Desktop/test_data/test/pos
     # my directories
-    # train_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/train/neg"
-    # train_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/train/pos"
-    # test_positive_path = "C:/Users/alex/Desktop/aclImdb_v1/test/pos"
-    # test_negative_path = "C:/Users/alex/Desktop/aclImdb_v1/test/neg"
+    train_positive_path = "C:/Users/alex/Desktop/aclImdb_v1 (1)/aclImdb/train/pos"
+    train_negative_path = "C:/Users/alex/Desktop/aclImdb_v1 (1)/aclImdb/train/neg"
+    test_positive_path = "C:/Users/alex/Desktop/aclImdb_v1 (1)/aclImdb/test/pos"
+    test_negative_path = "C:/Users/alex/Desktop/aclImdb_v1 (1)/aclImdb/test/neg"
     evaluate_random_forest()

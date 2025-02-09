@@ -43,8 +43,11 @@ def calculate_probabilities(matrix):
 
 def find_index_from_word(word, vocabulary):
     try:
+        print("haha")
+        print("the word is:" + vocabulary.index(word))
         return vocabulary.index(word)
     except Exception as e:
+        # print("haha")
         print()
 
 
