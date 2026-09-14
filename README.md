@@ -1,2 +1,2 @@
 # rf-adaboost
-python implementation of Random Forest and AdaBoost for text processing.  
+python implementation of Random Forest for text processing.  
